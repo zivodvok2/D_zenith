@@ -4,7 +4,13 @@ import { localize } from '@deriv-com/translations';
 import { config } from '../../../../constants/config';
 import ApiHelpers from '../../../../services/api/api-helpers';
 import DBotStore from '../../../dbot-store';
-import { modifyContextMenu, runGroupedEvents, runIrreversibleEvents } from '../../../utils';
+import {
+    excludeOptionFromContextMenu,
+    modifyContextMenu,
+    runGroupedEvents,
+    runIrreversibleEvents,
+    setCurrency,
+} from '../../../utils';
 
 window.Blockly.Blocks.trade_definition_tradeoptions = {
     durations: [],
@@ -70,6 +76,8 @@ window.Blockly.Blocks.trade_definition_tradeoptions = {
         };
     },
     customContextMenu(menu) {
+        const menu_items = [localize('Enable Block'), localize('Disable Block')];
+        excludeOptionFromContextMenu(menu, menu_items);
         modifyContextMenu(menu);
     },
     onchange(event) {
@@ -119,7 +127,7 @@ window.Blockly.Blocks.trade_definition_tradeoptions = {
             (event.type === window.Blockly.Events.BLOCK_CREATE && event.ids.includes(this.id)) ||
             (event.type === window.Blockly.Events.BLOCK_DRAG && !event.isStart)
         ) {
-            this.setCurrency();
+            setCurrency(this);
             this.updateAmountLimits();
         }
 
@@ -237,7 +245,8 @@ window.Blockly.Blocks.trade_definition_tradeoptions = {
         });
     },
     updateAmountLimits() {
-        const { account_limits } = ApiHelpers.instance;
+        const { account_limits } = ApiHelpers?.instance ?? {};
+        if (!account_limits) return;
         const { currency, landing_company_shortcode } = DBotStore.instance.client;
         if (isAuthorizing$.getValue()) return;
         account_limits.getStakePayoutLimits(currency, landing_company_shortcode, this.selected_market).then(limits => {
@@ -260,7 +269,8 @@ window.Blockly.Blocks.trade_definition_tradeoptions = {
         });
     },
     updateDurationInput(should_use_default_unit, should_update_value) {
-        const { contracts_for } = ApiHelpers.instance;
+        const { contracts_for } = ApiHelpers?.instance ?? {};
+        if (!contracts_for) return;
 
         if (this.selected_trade_type === 'accumulator' && this.isDescendantOf('trade_definition')) {
             runIrreversibleEvents(() => {
@@ -336,11 +346,11 @@ window.Blockly.Blocks.trade_definition_tradeoptions = {
                     take_profit_shadow_block.initSvg();
                     take_profit_shadow_block.renderEfficiently();
 
+                    take_profit_block.initSvg();
+                    take_profit_block.renderEfficiently();
                     multiplier_block
                         .getLastConnectionInStatement('MULTIPLIER_PARAMS')
                         .connect(take_profit_block.previousConnection);
-                    take_profit_block.initSvg();
-                    take_profit_block.renderEfficiently();
 
                     const stop_loss_block = this.workspace.newBlock('multiplier_stop_loss');
                     const stop_loss_input = stop_loss_block.getInput('AMOUNT');
@@ -353,11 +363,11 @@ window.Blockly.Blocks.trade_definition_tradeoptions = {
                     stop_loss_shadow_block.initSvg();
                     stop_loss_shadow_block.renderEfficiently();
 
+                    stop_loss_block.initSvg();
+                    stop_loss_block.renderEfficiently();
                     multiplier_block
                         .getLastConnectionInStatement('MULTIPLIER_PARAMS')
                         .connect(stop_loss_block.previousConnection);
-                    stop_loss_block.initSvg();
-                    stop_loss_block.renderEfficiently();
 
                     this.dispose();
                 });
@@ -400,7 +410,9 @@ window.Blockly.Blocks.trade_definition_tradeoptions = {
         }, 10);
     },
     updateBarrierInputs(should_use_default_type, should_use_default_values) {
-        const { contracts_for } = ApiHelpers.instance;
+        const { contracts_for } = ApiHelpers?.instance ?? {};
+        if (!contracts_for) return;
+
         const { BARRIER_TYPES } = config();
 
         contracts_for
@@ -458,7 +470,8 @@ window.Blockly.Blocks.trade_definition_tradeoptions = {
             });
     },
     updatePredictionInput(should_use_default_value) {
-        const { contracts_for } = ApiHelpers.instance;
+        const { contracts_for } = ApiHelpers?.instance ?? {};
+        if (!contracts_for) return;
 
         contracts_for.getPredictionRange(this.selected_symbol, this.selected_trade_type).then(prediction_range => {
             this.createPredictionInput(prediction_range);
@@ -523,11 +536,6 @@ window.Blockly.Blocks.trade_definition_tradeoptions = {
         container.setAttribute('has_prediction', !!this.getInput('PREDICTION'));
 
         return container;
-    },
-    setCurrency() {
-        const currency_field = this.getField('CURRENCY_LIST');
-        const { currency } = DBotStore.instance.client;
-        currency_field?.setText(getCurrencyDisplayCode(currency));
     },
     restricted_parents: ['trade_definition'],
     getRequiredValueInputs() {

@@ -122,10 +122,26 @@ const AppContent = observer(() => {
 
     const changeActiveSymbolLoadingState = () => {
         init();
-        const { active_symbols } = ApiHelpers.instance;
-        active_symbols.retrieveActiveSymbols(true).then(() => {
-            setIsLoading(false);
-        });
+
+        const retrieveActiveSymbols = () => {
+            const { active_symbols } = ApiHelpers.instance;
+            active_symbols.retrieveActiveSymbols(true).then(() => {
+                setIsLoading(false);
+            });
+        };
+
+        if (ApiHelpers?.instance?.active_symbols) {
+            retrieveActiveSymbols();
+        } else {
+            // This is a workaround to fix the issue where the active symbols are not loaded immediately
+            // when the API is initialized. Should be replaced with RxJS pubsub
+            const intervalId = setInterval(() => {
+                if (ApiHelpers?.instance?.active_symbols) {
+                    clearInterval(intervalId);
+                    retrieveActiveSymbols();
+                }
+            }, 1000);
+        }
     };
 
     React.useEffect(() => {
@@ -145,15 +161,11 @@ const AppContent = observer(() => {
             changeActiveSymbolLoadingState();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [client.is_landing_company_loaded, is_api_initialized]);
+    }, [client.is_landing_company_loaded, is_api_initialized, client.loginid]);
 
-    // TODO: fix
-    // const isMounted = useIsMounted();
-    // const { data: remote_config_data } = useRemoteConfig(isMounted());
-    // const { tracking_datadog } = data;
     useEffect(() => {
-        initDatadog(true); // (tracking_datadog);
-    }, []); // [tracking_datadog])
+        initDatadog(true);
+    }, []);
 
     if (common?.error) return null;
 

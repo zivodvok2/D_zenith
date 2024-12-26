@@ -1,6 +1,6 @@
 import { localize } from '@deriv-com/translations';
 import ApiHelpers from '../../../../services/api/api-helpers';
-import { modifyContextMenu, runIrreversibleEvents } from '../../../utils';
+import { excludeOptionFromContextMenu, modifyContextMenu, runIrreversibleEvents } from '../../../utils';
 
 /* eslint-disable */
 window.Blockly.Blocks.trade_definition_market = {
@@ -39,6 +39,8 @@ window.Blockly.Blocks.trade_definition_market = {
         this.setDeletable(false);
     },
     customContextMenu(menu) {
+        const menu_items = [localize('Enable Block'), localize('Disable Block')];
+        excludeOptionFromContextMenu(menu, menu_items);
         modifyContextMenu(menu);
     },
     onchange(event) {
@@ -57,7 +59,9 @@ window.Blockly.Blocks.trade_definition_market = {
 
         this.enforceLimitations();
 
-        const { active_symbols } = ApiHelpers.instance;
+        const { active_symbols } = ApiHelpers?.instance ?? {};
+        if (!active_symbols) return;
+
         const market_dropdown = this.getField('MARKET_LIST');
         const submarket_dropdown = this.getField('SUBMARKET_LIST');
         const symbol_dropdown = this.getField('SYMBOL_LIST');
@@ -116,7 +120,9 @@ window.Blockly.Blocks.trade_definition_market = {
                 // Reconnect self to trade definition block.
                 if (trade_definition_block) {
                     const connection = trade_definition_block.getLastConnectionInStatement('TRADE_OPTIONS');
-                    connection.connect(this.previousConnection);
+                    if (connection) {
+                        connection.connect(this.previousConnection);
+                    }
                 } else {
                     this.dispose();
                 }

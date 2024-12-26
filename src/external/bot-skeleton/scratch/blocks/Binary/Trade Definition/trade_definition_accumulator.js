@@ -4,7 +4,13 @@ import { config } from '../../../../constants/config';
 import ApiHelpers from '../../../../services/api/api-helpers';
 import { handleProposalRequestForAccumulators } from '../../../accumulators-proposal-handler';
 import DBotStore from '../../../dbot-store';
-import { modifyContextMenu, runGroupedEvents, runIrreversibleEvents } from '../../../utils';
+import {
+    excludeOptionFromContextMenu,
+    modifyContextMenu,
+    runGroupedEvents,
+    runIrreversibleEvents,
+    setCurrency,
+} from '../../../utils';
 
 window.Blockly.Blocks.trade_definition_accumulator = {
     init() {
@@ -127,7 +133,7 @@ window.Blockly.Blocks.trade_definition_accumulator = {
         const is_load_event = /^dbot-load/.test(event.group);
 
         if (event.type === window.Blockly.Events.BLOCK_CREATE && event.ids.includes(this.id)) {
-            this.setCurrency();
+            setCurrency(this);
             if (is_load_event) {
                 // Do NOT touch any values when a strategy is being loaded.
                 this.updateAccumulatorInput(false);
@@ -138,6 +144,7 @@ window.Blockly.Blocks.trade_definition_accumulator = {
         }
 
         if (event.type === window.Blockly.Events.BLOCK_CHANGE) {
+            setCurrency(this);
             this.validateBlocksInStatement();
             if (is_load_event) {
                 if (event.name === 'TRADETYPE_LIST') {
@@ -159,7 +166,6 @@ window.Blockly.Blocks.trade_definition_accumulator = {
         }
 
         if (event.type === window.Blockly.Events.BLOCK_DRAG && !event.isStart) {
-            this.setCurrency();
             this.validateBlocksInStatement();
             if (event.blockId === this.id) {
                 // Ensure this block is populated after initial drag from flyout.
@@ -175,10 +181,10 @@ window.Blockly.Blocks.trade_definition_accumulator = {
     },
     updateAmountLimits: window.Blockly.Blocks.trade_definition_tradeoptions.updateAmountLimits,
     updateAccumulatorInput(should_use_default_value) {
-        const { contracts_for } = ApiHelpers.instance;
+        const { contracts_for } = ApiHelpers?.instance ?? {};
 
         if (this.selected_trade_type === 'accumulator') {
-            contracts_for.getAccumulationRange().then(accumulator_range => {
+            contracts_for?.getAccumulationRange?.()?.then(accumulator_range => {
                 if (accumulator_range.length > 0) {
                     const accumulator_list_dropdown = this.getField('GROWTHRATE_LIST');
                     const accumulator_options = accumulator_range.map(value => {
@@ -236,9 +242,10 @@ window.Blockly.Blocks.trade_definition_accumulator = {
         }
     },
     customContextMenu(menu) {
+        const menu_items = [localize('Enable Block'), localize('Disable Block')];
+        excludeOptionFromContextMenu(menu, menu_items);
         modifyContextMenu(menu);
     },
-    setCurrency: window.Blockly.Blocks.trade_definition_tradeoptions.setCurrency,
     restricted_parents: ['trade_definition'],
     getRequiredValueInputs() {
         return {
